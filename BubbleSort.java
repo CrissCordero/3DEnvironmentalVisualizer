@@ -1,5 +1,5 @@
 //A simple algorithm for bubble sorting an array.
-
+//Cristopher C
 public class BubbleSort {
 
     public static void main(String[] args) {
