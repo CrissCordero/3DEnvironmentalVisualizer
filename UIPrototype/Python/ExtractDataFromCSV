@@ -1,0 +1,75 @@
+
+
+#acrScene for visualization?
+#Maybe for mapping visualization: https://www.generic-mapping-tools.org/about/
+#PyVista for visualization?
+
+#WOA DOCUMENTATION----------------------------
+#   TEMPERATURE: https://repository.library.noaa.gov/view/noaa/60599
+#   SALINITY: https://repository.library.noaa.gov/view/noaa/60600
+#------------------------------------------------
+
+
+#WOA DATASET------------------------------------
+#COL 0: Latitude (degrees North)
+#COL 1: Longitude (degrees East)
+#COL 2+: Temperature values ordered by increasing Depth (meters)
+    #WOA has 0-2000 meters, marked 'NaN' if depth is bellow seafloor or land
+#------------------------------------------------
+
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+
+#OPEN LINK -> RETRIEVE DESIRED FILES
+
+#base_url = "https://www.ncei.noaa.gov/data/oceans/woa/"
+base_url = "https://www.ncei.noaa.gov/data/oceans/woa/WOA23/DATA/temperature/csv/95A4/1.00/"
+
+
+def retrieve_files(file):
+
+    res = requests.get(base_url)
+    status = res.status_code #200=success
+    # Check if the request was successful
+    if status != 200: print(f"Failed to retrieve page. Status code: {status}")
+
+    rawhtmlcontent = res.content
+    soup = BeautifulSoup(rawhtmlcontent, 'html.parser')
+    print(soup.prettify()) #prints the html content in a readable format
+
+    # Find all anchor (<a>) tags on the page
+    links = soup.find_all('a')
+    if not links:
+        print("No links found on the page.")
+        return False
+        
+    for link in links:
+        link_text = link.get_text(strip=True) # Extracts the visible text between <a> and </a>
+        if link_text == file:
+            print(f"Found the file: {link_text}")
+            href = link.get('href')
+            link = f"{base_url}{href}"  # Construct the full URL to the file
+            # Pandas automatically detects the .gz extension and streams it
+            chunk_size = 10000  # Number of rows per chunk
+            for chunk in pd.read_csv(link, chunksize=chunk_size):
+                # Process each DataFrame chunk sequentially
+                print(chunk.head()) 
+            return True  # Exit the function after processing the files
+
+  
+
+
+
+
+def main():
+    file= 'woa23_95A4_t00an01.csv.gz'
+    # Call the function to build the URL and retrieve files
+    retrieve_files(file)  # Pass the full URL to the retrieve_files function
+
+main()
+
+
+
