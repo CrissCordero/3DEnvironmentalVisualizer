@@ -57,21 +57,18 @@ def retrieve_files(file):
 
 def data_set_geographic_range(NOAA_data,lat_min,lat_max,long_min,long_max):#removes data outside given latitude/longitude range
     if(lat_min>lat_max):#check for errors
-            print("error given latitude depth is less than the minimum returning data as is")
+            print("error given latitude depth is less than the minimum: Returning data as is")
             return NOAA_data
     if(long_min>long_max):#check for errors
-            print("error given max longitude is less than the minimum returning data as is")
+            print("error given max longitude is less than the minimum: Returning data as is")
             return NOAA_data
-    NOAA_data=NOAA_data[NOAA_data['#COMMA SEPARATED LATITUDE']>=lat_min]#only include data within latitude/longitude range
-    [NOAA_data['#COMMA SEPARATED LATITUDE']<=lat_max]
-    [NOAA_data[' LONGITUDE']>=long_min]
-    [NOAA_data[' LONGITUDE']<=long_max]
+    NOAA_data=NOAA_data[NOAA_data['#COMMA SEPARATED LATITUDE']>=lat_min][NOAA_data['#COMMA SEPARATED LATITUDE']<=lat_max][NOAA_data[' LONGITUDE']>=long_min][NOAA_data[' LONGITUDE']<=long_max]#only include data within latitude/longitude range
     return NOAA_data #return back to user
 
 
 def data_set_depth_range(NOAA_data,depth_min,depth_max):#removes data outside given depth range
     if(depth_min>depth_max):#check for errors
-        print("error given max depth is less than the minimum returning data as is")
+        print("error given max depth is less than the minimum: Returning data as is")
         return NOAA_data
     for column in NOAA_data.columns[3:]:#search every column after 0M
         if(int(column)<depth_min or int(column)>depth_max):
@@ -81,14 +78,20 @@ def data_set_depth_range(NOAA_data,depth_min,depth_max):#removes data outside gi
     return NOAA_data #return back to user
 
 
-def main():
+def data_retrieve_and_set_all_range(file,lat_min,lat_max,long_min,long_max,depth_min,depth_max):#Does all other functions in one
+    data=retrieve_files(file)  # Pass the full URL to the retrieve_files function
+    data=data_set_geographic_range(data,lat_min,lat_max,long_min,long_max)#
+    data=data_set_depth_range(data, depth_min, depth_max)
+    return data
+
+
+def main():#only here for testing purposes
     file= 'woa23_95A4_t00an01.csv.gz'
     # Call the function to build the URL and retrieve files
     data=retrieve_files(file)  # Pass the full URL to the retrieve_files function
-    data=data_set_geographic_range(data,-19,19,10,100)#
+    data=data_set_geographic_range(data,-19,70,10,100)#
     data=data_set_depth_range(data, 50, 500)
+    data2=data_retrieve_and_set_all_range(file,-19,100,-90,50,10, 400)
     print(data)
-main()
-
-
-
+    print(data2)
+#main()
