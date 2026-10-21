@@ -25,6 +25,7 @@ import pandas as pd
 
 #base_url = "https://www.ncei.noaa.gov/data/oceans/woa/"
 base_url = "https://www.ncei.noaa.gov/data/oceans/woa/WOA23/DATA/temperature/csv/95A4/1.00/"
+#Note need to add better system for getting urls at some point
 
 
 def retrieve_files(file):
@@ -52,6 +53,7 @@ def retrieve_files(file):
             # Pandas automatically detects the .gz extension and streams it
             #print(pd.read_csv(link,nrows=1))
             NOAA_data=pd.read_csv(link,header=1)
+            NOAA_data=NOAA_data.rename(columns={'#COMMA SEPARATED LATITUDE':'latitude',' LONGITUDE':'longitude',' AND VALUES AT DEPTHS (M):0':'0'})
             return NOAA_data  #Return files to called function
 
 
@@ -62,7 +64,10 @@ def data_set_geographic_range(NOAA_data,lat_min,lat_max,long_min,long_max):#remo
     if(long_min>long_max):#check for errors
             print("error given max longitude is less than the minimum: Returning data as is")
             return NOAA_data
-    NOAA_data=NOAA_data[NOAA_data['#COMMA SEPARATED LATITUDE']>=lat_min][NOAA_data['#COMMA SEPARATED LATITUDE']<=lat_max][NOAA_data[' LONGITUDE']>=long_min][NOAA_data[' LONGITUDE']<=long_max]#only include data within latitude/longitude range
+    NOAA_data=NOAA_data[NOAA_data['latitude']>=lat_min]#only include data within latitude/longitude range
+    NOAA_data=NOAA_data[NOAA_data['latitude']<=lat_max]#only include data within latitude/longitude range
+    NOAA_data=NOAA_data[NOAA_data['longitude']>=long_min]#only include data within latitude/longitude range
+    NOAA_data=NOAA_data[NOAA_data['longitude']<=long_max]#only include data within latitude/longitude range
     return NOAA_data #return back to user
 
 
@@ -70,11 +75,9 @@ def data_set_depth_range(NOAA_data,depth_min,depth_max):#removes data outside gi
     if(depth_min>depth_max):#check for errors
         print("error given max depth is less than the minimum: Returning data as is")
         return NOAA_data
-    for column in NOAA_data.columns[3:]:#search every column after 0M
+    for column in NOAA_data.columns[2:]:#search every column after 0M
         if(int(column)<depth_min or int(column)>depth_max):
             NOAA_data=NOAA_data.drop(columns=[column])
-    if(depth_min>0):#column for 0M deep cannot converted into int so it must be checked seperately
-            NOAA_data=NOAA_data.drop(columns=NOAA_data.columns[2])
     return NOAA_data #return back to user
 
 
@@ -90,7 +93,7 @@ def main():#only here for testing purposes
     # Call the function to build the URL and retrieve files
     data=retrieve_files(file)  # Pass the full URL to the retrieve_files function
     data=data_set_geographic_range(data,-19,70,10,100)#
-    data=data_set_depth_range(data, 50, 500)
+    data=data_set_depth_range(data, 0, 500)
     data2=data_retrieve_and_set_all_range(file,-19,100,-90,50,10, 400)
     print(data)
     print(data2)
