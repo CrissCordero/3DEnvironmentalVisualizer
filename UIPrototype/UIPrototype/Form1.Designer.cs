@@ -1,4 +1,5 @@
-﻿namespace UIPrototype
+﻿
+namespace UIPrototype
 {
     partial class Form1
     {
@@ -30,14 +31,12 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             backGrnd2 = new PictureBox();
-            pictureBox1 = new PictureBox();
-            Load = new Button();
+            btnLoadModel = new Button();
             button1 = new Button();
             trackBar1 = new TrackBar();
             label1 = new Label();
             trackBar2 = new TrackBar();
             label2 = new Label();
-            pictureBox2 = new PictureBox();
             button2 = new Button();
             button3 = new Button();
             groupBox1 = new GroupBox();
@@ -51,12 +50,12 @@
             label3 = new Label();
             textBox2 = new TextBox();
             textBox1 = new TextBox();
+            webView21 = new Microsoft.Web.WebView2.WinForms.WebView2();
             ((System.ComponentModel.ISupportInitialize)backGrnd2).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBar1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBar2).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             groupBox2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)webView21).BeginInit();
             SuspendLayout();
             // 
             // backGrnd2
@@ -69,26 +68,16 @@
             backGrnd2.TabIndex = 0;
             backGrnd2.TabStop = false;
             // 
-            // pictureBox1
+            // btnLoadModel
             // 
-            pictureBox1.Image = (Image)resources.GetObject("pictureBox1.Image");
-            pictureBox1.Location = new Point(499, 51);
-            pictureBox1.Margin = new Padding(3, 4, 3, 4);
-            pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(365, 388);
-            pictureBox1.TabIndex = 1;
-            pictureBox1.TabStop = false;
-            pictureBox1.Click += pictureBox1_Click;
-            // 
-            // Load
-            // 
-            Load.Location = new Point(61, 544);
-            Load.Margin = new Padding(3, 4, 3, 4);
-            Load.Name = "Load";
-            Load.Size = new Size(112, 31);
-            Load.TabIndex = 2;
-            Load.Text = "Load Model";
-            Load.UseVisualStyleBackColor = true;
+            btnLoadModel.Location = new Point(61, 544);
+            btnLoadModel.Margin = new Padding(3, 4, 3, 4);
+            btnLoadModel.Name = "Load";
+            btnLoadModel.Size = new Size(112, 31);
+            btnLoadModel.TabIndex = 2;
+            btnLoadModel.Text = "Load Model";
+            btnLoadModel.UseVisualStyleBackColor = true;
+            btnLoadModel.Click += btnLoadModel_Click;
             // 
             // button1
             // 
@@ -135,18 +124,6 @@
             label2.TabIndex = 7;
             label2.Text = "Element Size";
             label2.Click += label2_Click;
-            // 
-            // pictureBox2
-            // 
-            pictureBox2.Image = (Image)resources.GetObject("pictureBox2.Image");
-            pictureBox2.Location = new Point(499, 436);
-            pictureBox2.Margin = new Padding(3, 4, 3, 4);
-            pictureBox2.Name = "pictureBox2";
-            pictureBox2.Size = new Size(365, 92);
-            pictureBox2.SizeMode = PictureBoxSizeMode.Zoom;
-            pictureBox2.TabIndex = 8;
-            pictureBox2.TabStop = false;
-            pictureBox2.Click += pictureBox2_Click;
             // 
             // button2
             // 
@@ -279,34 +256,43 @@
             textBox1.Size = new Size(114, 27);
             textBox1.TabIndex = 0;
             // 
+            // webView21
+            // 
+            webView21.AllowExternalDrop = true;
+            webView21.CreationProperties = null;
+            webView21.DefaultBackgroundColor = Color.White;
+            webView21.Location = new Point(498, 63);
+            webView21.Name = "webView21";
+            webView21.Size = new Size(363, 500);
+            webView21.TabIndex = 13;
+            webView21.ZoomFactor = 1D;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(890, 591);
+            Controls.Add(webView21);
             Controls.Add(groupBox2);
             Controls.Add(button3);
             Controls.Add(button2);
-            Controls.Add(pictureBox2);
             Controls.Add(label2);
             Controls.Add(trackBar2);
             Controls.Add(label1);
             Controls.Add(trackBar1);
             Controls.Add(button1);
-            Controls.Add(Load);
-            Controls.Add(pictureBox1);
+            Controls.Add(btnLoadModel);
             Controls.Add(backGrnd2);
             Controls.Add(groupBox1);
             Margin = new Padding(3, 4, 3, 4);
             Name = "Form1";
             Text = "3D Environmental Visualizer";
             ((System.ComponentModel.ISupportInitialize)backGrnd2).EndInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)trackBar1).EndInit();
             ((System.ComponentModel.ISupportInitialize)trackBar2).EndInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
             groupBox2.ResumeLayout(false);
             groupBox2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)webView21).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -314,14 +300,12 @@
         #endregion
 
         private PictureBox backGrnd2;
-        private PictureBox pictureBox1;
-        private Button Load;
+        private Button btnLoadModel;
         private Button button1;
         private TrackBar trackBar1;
         private Label label1;
         private TrackBar trackBar2;
         private Label label2;
-        private PictureBox pictureBox2;
         private Button button2;
         private Button button3;
         private GroupBox groupBox1;
@@ -335,5 +319,6 @@
         private Label label4;
         private Label label3;
         private Button button4;
+        private Microsoft.Web.WebView2.WinForms.WebView2 webView21;
     }
 }

@@ -1,22 +1,21 @@
 using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.IO;
+
+using System.Linq;
 
 namespace UIPrototype
 {
     public partial class Form1 : Form
     {
+        private PythonBridge? _bridge;
         public Form1()
         {
             InitializeComponent();
         }
 
-        private void label1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label1_Click_1(object sender, EventArgs e)
+        private void label2_Click(object sender, EventArgs e)
         {
 
         }
@@ -29,13 +28,8 @@ namespace UIPrototype
 
             try
             {
-                //MessageBox.Show("button1 clicked");
-
-                var bridge = new PythonBridge();
-
-                string response = await bridge.TestConnectionAsync("https://www.ncei.noaa.gov/data/oceans/woa/WOA23/");
-
-                MessageBox.Show(response, "Python IPC Test");
+                //details button
+                MessageBox.Show("button1 clicked");
             }
             catch(Exception ex)
             {
@@ -43,25 +37,36 @@ namespace UIPrototype
             }
         }
 
-        private void label2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void pictureBox1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void pictureBox2_Click(object sender, EventArgs e)
-        {
-            pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
-
-        }
-
         private void button3_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private async void btnLoadModel_Click(object sender, EventArgs e)
+        {
+            btnLoadModel.Enabled = false;
+
+            try
+            {
+                _bridge ??= new PythonBridge();
+                await webView21.EnsureCoreWebView2Async();
+
+                string csv = Path.Combine(PythonBridge.ProjectPythonFolder(), "woa23_95A4_t01an01.csv");
+                double[] depths = { 0, 25, 50, 100, 200, 400, 700, 1000 };
+
+                //csv, depths, lomin, lomax, lamin, lamax, stride, nColors
+                var result = await _bridge.GenerateGraphAsync(csv, depths, -80, -40, 20, 50, 2, 8);
+
+                webView21.CoreWebView2.Navigate(new Uri(result.OutputFile!).AbsoluteUri);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Graph error");
+            }
+            finally
+            {
+                btnLoadModel.Enabled = true;
+            }
         }
     }
 }
