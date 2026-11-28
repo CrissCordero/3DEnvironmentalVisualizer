@@ -1,0 +1,281 @@
+#pandas for csv --> dataframe
+import pandas as pd
+#numpy for storing ocean data
+import numpy as np
+#matplotlib for creating scatter plots
+import matplotlib.pyplot as plt
+import io
+#plotly for global projection
+import plotly.graph_objects as go
+import pyvista as pv
+
+file_path = r"woa23_95A4_t01an01.csv"
+
+
+#Assumptions: 
+#   file will have header title and header DEPTHS (M): 
+#   file has NO rows longer than num cols
+class WOALayers:
+    #WOA obj has attributes: path, title, lat[], lon[], temps[], depths[]
+    def __init__(self, path):
+        
+        if not path:
+            print("No valid path provided. Exiting the function.")
+            return None
+
+        with open(path, encoding = 'utf-8') as f:
+            #reads the first comment line: holding dataset title info 
+            self.title = f.readline().strip()
+            #reads comment line where column fields are labeled by lat, lon and depth column by their values
+            depth_line = f.readline()
+            if "DEPTHS (M):" not in depth_line:     
+                raise ValueError ("Could not find 'DEPTHS (M):")  
+
+            #set self.depths 
+            self.depths = np.array(
+                [float(v) for v in depth_line.split("DEPTHS (M):")[-1].split(",") if v.strip()],
+                dtype=np.float32
+            )
+            #set number of columns for pd.read_csv
+            n_cols = 2+len(self.depths)
+            #pandas reads csv file into df
+            df = pd.read_csv(f, header=None, names=range(n_cols), dtype=np.float32)
+
+        #organize data into arrays for optimized access and memory use
+        self.lat = df[0].to_numpy()
+        self.lon = df[1].to_numpy()
+        self.temps = df.iloc[:, 2:].to_numpy()  
+
+        del df #free up mem
+
+    #to retrieve array indexing of the depth argument
+    def _depth_index(self,depth):
+        return int(np.abs(self.depths - depth).argmin())
+
+    #Extracts and filters data for a specific depth and optional area box.
+    def layer(self, depth, lomin=None, lomax=None, lamin=None, lamax=None):
+        j = self._depth_index(depth)
+        
+        # Apply spatial bounding box if coords are provided
+        if None not in (lomin, lomax, lamin, lamax):
+            area_mask = (
+                (self.lat >= lamin) & (self.lat <= lamax) &
+                (self.lon >= lomin) & (self.lon <= lomax)
+            )
+        else:
+            area_mask = np.ones(len(self.lat), dtype=bool) # Keep everything
+            
+        t = self.temps[area_mask, j]
+        sub_lat = self.lat[area_mask]
+        sub_lon = self.lon[area_mask]
+        
+        # Strip out NaNs
+        notNA = ~np.isnan(t)
+        return sub_lat[notNA], sub_lon[notNA], t[notNA], self.depths[j]
+
+    def getAvailableDepths(self):
+        return self.depths
+
+
+#-------------ToDo: organize below fucntions making layers and generating figures
+
+    #function returning a generated dataframe of data at a single depth layer
+    def getSingleAreaLayer(self, depth, lomin=None, lomax=None, lamin=None, lamax=None):
+        #depth used is stored in df.attrs['depth'] and the dataset title in df.attrs['title'].
+        sub_lat, sub_lon, sub_t, val_depth = self.layer(depth, lomin, lomax, lamin, lamax)
+
+        df = pd.DataFrame(
+            {"lat": sub_lat, "lon": sub_lon, "temp": sub_t},
+            copy=False,
+        )
+        df.attrs["depth"] = float(val_depth)
+        df.attrs["title"] = self.title
+        return df 
+
+    #uses getSingleAreaLayer to use plotly to generate visual figure
+    def singleLayerMercator(self, depth, lomin, lomax, lamin, lamax):
+        df = self.getSingleAreaLayer(depth, lomin, lomax, lamin, lamax)
+
+        if df.empty:
+            print("No valid data points found for this selection.")
+            return None
+        
+        fig = go.Figure(go.Scattergeo(
+            lat=df["lat"], lon=df["lon"],
+            mode="markers",
+            marker=dict(color=df["temp"], colorscale="RdBu_r", size=3,colorbar=dict(title="Temp (°C)")),
+        ))
+        fig.update_geos(
+        projection_type="mercator",
+        lataxis_range=[lamin,lamax], lonaxis_range=[lomin, lomax],
+        )
+
+        fig.update_layout(title=f"{df.attrs['title']}<br>Temperature at {df.attrs['depth']:g} m")
+        fig.show()
+        return fig
+    
+#--------3D scatter
+
+    #stacks several depth layers into one PolyData point cloud
+    #returns (cloud, used_depths) or (None, []) if nothing was found
+    def buildVolumeCloud(self, depths, lomin=None, lomax=None, lamin=None, lamax=None,
+                         stride=2, z_scale=0.01):
+        """
+        depths  : list of requested depths (m); each snaps to the nearest WOA depth, duplicates removed
+        stride  : keep every Nth lat/lon grid line (1 = all points). Works for any WOA grid resolution.
+        z_scale : depth (m) is multiplied by this so the vertical axis is comparable to degrees
+                  (0.01 -> 1000 m looks like 10 degrees tall)
+        """
+        #unique depth indices, so two requested depths that snap to the same level don't double up
+        idxs = sorted({self._depth_index(d) for d in depths})
+ 
+        #grid lines to keep for thinning (computed once so every layer lines up)
+        stride = max(int(stride), 1)
+        keep_lat = np.unique(self.lat)[::stride]
+        keep_lon = np.unique(self.lon)[::stride]
+ 
+        X, Y, Z, T, used = [], [], [], [], []
+        for j in idxs:
+            la, lo, t, dep = self.layer(self.depths[j], lomin, lomax, lamin, lamax)
+            keep = np.isin(la, keep_lat) & np.isin(lo, keep_lon)
+            la, lo, t = la[keep], lo[keep], t[keep]
+            if t.size == 0:
+                continue
+            X.append(lo); Y.append(la); T.append(t)
+            Z.append(np.full(t.size, -dep * z_scale, dtype=np.float32))  #negative = down
+            used.append(float(dep))
+ 
+        if not T:
+            return None, []
+ 
+        points = np.column_stack([np.concatenate(X), np.concatenate(Y), np.concatenate(Z)])
+        cloud = pv.PolyData(points)
+        cloud["Temp (°C)"] = np.concatenate(T)
+        return cloud, used
+ 
+    #renders the point cloud in a rotatable window (or a notebook with pv.set_jupyter_backend("trame"))
+    def volume3D(self, depths, lomin=None, lomax=None, lamin=None, lamax=None,
+                 stride=2, z_scale=0.01, point_size=8,
+                 cmap="turbo", n_colors=256, screenshot=None):
+        """
+        n_colors   : 256 = smooth gradient; try 6-8 for banded colors like a stoplight chart
+        cmap       : any matplotlib colormap name ("turbo", "RdBu_r", "jet", ...)
+        screenshot : optional path (e.g. "ocean.png") to save an image when the window closes
+        """
+        cloud, used = self.buildVolumeCloud(depths, lomin, lomax, lamin, lamax, stride, z_scale)
+        if cloud is None:
+            print("No valid data points found for this selection.")
+            return None
+ 
+        print(f"Rendering {cloud.n_points:,} points across {len(used)} depths: {used}")
+ 
+        pl = pv.Plotter()
+        pl.add_mesh(
+            cloud,
+            scalars="Temp (°C)",
+            cmap=cmap,
+            n_colors=n_colors,
+            render_points_as_spheres=True,
+            point_size=point_size,
+            scalar_bar_args={"title": "Temp (°C)"},
+        )
+ 
+        #axis labels show real units even though z is internally scaled
+        xmin, xmax, ymin, ymax, _, _ = cloud.bounds
+        pl.show_bounds(
+            axes_ranges=[xmin, xmax, ymin, ymax, -max(used), -min(used)],
+            xtitle="Longitude", ytitle="Latitude", ztitle="Depth (m)",
+            grid="back", location="outer",
+        )
+        pl.add_axes()
+        pl.add_text(f"{self.title}\nTemperature volume", font_size=10)
+        pl.show(screenshot=screenshot)
+        return cloud
+
+def input_lat&lon(prompt):
+    while True:
+        try:
+            values = input(prompt).split(',')
+            floats = [float(v.strip()) for v in values]
+            latlow = floats[0]
+            lathigh = floats[1]
+            if -90 <= latlow <= 90 and -90 <= lathigh <= 90:
+                selected_lat_range = (latlow, lathigh)
+            else:
+                print("Latitudes must be between -90 and 90 degrees.")
+            lonlow = floats[2]
+            lonhigh = floats[3]
+            if -180 <= lonlow <= 180 and -180 <= lonhigh <= 180:
+                selected_lon_range = (lonlow, lonhigh)
+            else:
+                print("Longitudes must be between -180 and 180 degrees.")
+        except ValueError:
+            print("Please enter a valid number.")
+        return selected_lat_range, selected_lon_range
+
+def input_stride(prompt):
+    while True:
+        try:
+            stride = int(input(prompt))
+            if stride > 0:
+                return stride
+            else:
+                print("Stride must be a positive integer.")
+        except ValueError:
+            print("Please enter a valid integer.")
+
+#takes in a string <depthLow> , <depthHigh> and returns a list of depths in that range, checking against available depths in the dataset
+def input_depths_range(prompt):
+    while True:
+        try:
+            valueRange = input(prompt).split(',')
+            depthRange = [float(v.strip()) for v in valueRange]
+            if all(d >= 0 for d in depthRange) and len(depthRange) == 2 and depthRange[0] <= depthRange[1]:
+                for d in woa.getAvailableDepths():
+                    if d >= depthRange[0] and d <= depthRange[1]:
+                        depthRange.append(d)
+                return depthRange
+            else:
+                print("Depth range must be two non-negative numbers with the first less than or equal to the second.")
+        except ValueError:
+            print("Please enter valid numbers separated by commas.")
+
+
+def main():
+ 
+    woa = WOALayers(file_path)
+ 
+    print(f"Loaded dataset: {woa.title}")
+    print(f"Available depths: {woa.depths}")
+    
+    print("Please enter the bounding box coordinates for the area of interest: <latitude min>, <latitude max>, <longitude min>, <longitude max>")
+    #user input for lat/lon range
+    input_str = input()
+    area_lat_range, area_lon_range = input_lat&lon(input_str)
+    lamin, lamax = area_lat_range
+    lomin, lomax = area_lon_range
+
+    print("Please enter the depth range: <depth min>, <depth max>")
+    #user input for depth range
+    input_str = input()
+    depth_range = input_depths_range(input_str)
+
+    print("Please enter the stride value (positive integer): (ex: stride = 7 means sample every 7th point)")
+    prompt = input()
+    stride = input_stride(prompt)
+
+    # 3D stacked volume of the target area
+    woa.volume3D(
+        depths=depth_range,
+        lomin=lomin, lomax=lomax,
+        lamin=lamin, lamax=lamax,
+        stride=2,
+        n_colors=8,          # banded colors like your reference image; use 256 for smooth
+    )
+ 
+    # 2D map of one layer (plotly), if you still want it
+    # woa.singleLayerMercator(depth=50.0, lomin=-80.0, lomax=-40.0, lamin=20.0, lamax=50.0)
+ 
+ 
+if __name__ == "__main__":
+    main()
