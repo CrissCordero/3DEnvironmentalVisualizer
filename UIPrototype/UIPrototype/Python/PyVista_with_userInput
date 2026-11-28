@@ -269,7 +269,7 @@ def main():
         depths=depth_range,
         lomin=lomin, lomax=lomax,
         lamin=lamin, lamax=lamax,
-        stride=2,
+        stride=stride,
         n_colors=8,          # banded colors like your reference image; use 256 for smooth
     )
  
